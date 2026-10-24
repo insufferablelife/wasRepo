@@ -13,7 +13,7 @@ const db = mysql.createConnection({
     host: '127.0.0.1',
     user: 'root',
     password: 'Republic_C207',
-    database: 'c237_usersdb'
+    database: 'fypdb'
 });
 
 db.connect((err) => {
