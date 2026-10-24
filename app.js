@@ -89,14 +89,22 @@ const validateRegistration = (req, res, next) => {
 
 //******** TODO: Integrate validateRegistration into the register route. ********//
 app.post('/register', validateRegistration, (req, res) => {
-    //******** TODO: Update register route to include role. ********//
-    const { username, email, password, address, contact, role } = req.body;
+    const { username, email, password, address, contact } = req.body;
 
-    const sql = 'INSERT INTO users (username, email, password, address, contact, role) VALUES (?, ?, SHA1(?), ?, ?, ?)';
+    // default 2 user
+    const role = 'user';
+
+    const sql = `
+        INSERT INTO users (username, email, password, address, contact, role)
+        VALUES (?, ?, SHA1(?), ?, ?, ?)
+    `;
+
     db.query(sql, [username, email, password, address, contact, role], (err, result) => {
         if (err) {
-            throw err;
+            console.error(err);
+            return res.status(500).send('Registration failed. Please try again.');
         }
+
         console.log(result);
         req.flash('success', 'Registration successful! Please log in.');
         res.redirect('/login');
