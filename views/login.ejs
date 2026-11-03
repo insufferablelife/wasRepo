@@ -6,7 +6,6 @@
     <style>
         body {
             background-color: #121212;
-            color: #e0e0e0;
             font-family: Verdana, sans-serif;
             display: flex;
             align-items: center;
@@ -18,40 +17,42 @@
             width: 100%;
             max-width: 440px;
             padding: 2.5rem;
-            background-color: #1e1e1e;
+            background-color: #f1f3f5;
+            color: #212529;
             border-radius: 14px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-            border: 1px solid #2d2d2d;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid #dee2e6;
         }
         h1 {
             font-weight: bold;
-            color: #ffffff;
+            color: #111827;
             margin-bottom: 1.5rem;
             text-align: center;
             font-size: 1.75rem;
         }
         .form-label {
-            color: #b0b0b0;
+            color: #374151;
             font-size: 0.85rem;
+            font-weight: 600;
             margin-bottom: 0.4rem;
         }
         .form-control {
-            background-color: #282828;
-            border: 1px solid #3c3c3c;
-            color: #ffffff;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            color: #111827;
             border-radius: 8px;
             padding: 0.75rem 1rem;
             font-family: Verdana, sans-serif;
             font-size: 0.95rem;
         }
         .form-control:focus {
-            background-color: #282828;
-            border-color: #6c757d;
-            color: #ffffff;
-            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+            background-color: #ffffff;
+            border-color: #4f46e5;
+            color: #111827;
+            box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.15);
         }
         .btn-primary {
-            background-color: #3a6073;
+            background-color: #1f2937;
             border: none;
             border-radius: 8px;
             padding: 0.75rem;
@@ -59,51 +60,55 @@
             width: 100%;
             margin-top: 1rem;
             font-family: Verdana, sans-serif;
+            color: #ffffff;
             transition: background-color 0.2s ease;
         }
         .btn-primary:hover {
-            background-color: #2c4a59;
+            background-color: #111827;
         }
         .alert-danger {
-            background-color: #3b2020;
-            color: #f8d7da;
-            border: 1px solid #5a3131;
+            background-color: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
             border-radius: 8px;
             font-size: 0.9rem;
         }
         .alert-success {
-            background-color: #1c3628;
-            color: #d1e7dd;
-            border: 1px solid #2a523b;
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
             border-radius: 8px;
             font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="mt-5">Login</h1>
+    <div class="auth-box">
+        <h1>Login</h1>
+        
         <% if (errors && errors.length > 0) { %>
-            <div class="alert alert-danger">
+            <div class="alert alert-danger mb-3">
                 <% errors.forEach(function(error) { %>
-                    <p><%= error %></p>
+                    <p class="mb-1"><%= error %></p>
                 <% }); %>
             </div>
         <% } %>
+
         <% if (messages && messages.length > 0) { %>
-            <div class="alert alert-success">
+            <div class="alert alert-success mb-3">
                 <% messages.forEach(function(message) { %>
-                    <p><%= message %></p>
+                    <p class="mb-1"><%= message %></p>
                 <% }); %>
             </div>
         <% } %>
-        <form action="/login" method="POST" class="mt-4">
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" class="form-control" required>
+
+        <form action="/login" method="POST">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email:</label>
+                <input type="text" id="email" name="email" class="form-control" required>
             </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password:</label>
                 <input type="password" id="password" name="password" class="form-control" required>
             </div>
             <button type="submit" class="btn btn-primary">Login</button>
