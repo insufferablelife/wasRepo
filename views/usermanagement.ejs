@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Management Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 40px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .search-form {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .search-form label {
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+        }
+        .search-form input[type="text"] {
+            padding: 8px 12px;
+            width: 280px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-form button {
+            padding: 8px 16px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .search-form button:hover {
+            background-color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #111;
+            color: #fff;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        /* Alternating rows: Black and White */
+        tr:nth-child(odd) {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        tr:nth-child(even) {
+            background-color: #000000;
+            color: #ffffff;
+        }
+        /* Role styling: Users in dark blue, Admins in burgundy */
+        .role-user {
+            color: #00008B; /* Dark Blue */
+            font-weight: bold;
+        }
+        .role-admin {
+            color: #800020; /* Burgundy */
+            font-weight: bold;
+        }
+        /* Adjust role text contrast for alternating black rows */
+        tr:nth-child(even) .role-user {
+            color: #4169E1; /* Royal Blue for visibility on black rows */
+        }
+        tr:nth-child(even) .role-admin {
+            color: #C71585; /* Medium Violet Red / Bright Burgundy for visibility on black rows */
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #0066cc;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin" class="back-link">&larr; Back to Admin Dashboard</a>
+        <h2>User Management Board</h2>
+
+        <div class="header-top">
+            <form action="/admin/users" method="GET" class="search-form">
+                <label for="search">Search Users</label>
+                <input type="text" id="search" name="search" value="<%= search %>" placeholder="Search by username, email, address...">
+                <button type="submit">Search</button>
+            </form>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Contact</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (users && users.length > 0) { %>
+                    <% users.forEach(u => { %>
+                        <tr>
+                            <td><%= u.id %></td>
+                            <td><%= u.username %></td>
+                            <td><%= u.email %></td>
+                            <td><%= u.address %></td>
+                            <td><%= u.contact %></td>
+                            <td>
+                                <span class="<%= u.role === 'admin' ? 'role-admin' : 'role-user' %>">
+                                    <%= u.role.toUpperCase() %>
+                                </span>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px;">No users found.</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -20,7 +20,7 @@ db.connect((err) => {
     if (err) {
         throw err;
     }
-    console.log('Connected to database');
+    console.log('\x1b[32mConnected to database\x1b[0m');
 });
 
 app.use(express.urlencoded({ extended: false }));
@@ -90,22 +90,20 @@ const validateRegistration = (req, res, next) => {
 //******** TODO: Integrate validateRegistration into the register route. ********//
 app.post('/register', validateRegistration, (req, res) => {
     const { username, email, password, address, contact } = req.body;
-
-    // default 2 user
     const role = 'user';
 
+    // INSECURE: Direct variable interpolation allows breaking out of SQL syntax
     const sql = `
         INSERT INTO users (username, email, password, address, contact, role)
-        VALUES (?, ?, SHA1(?), ?, ?, ?)
+        VALUES ('${username}', '${email}', SHA1('${password}'), '${address}', '${contact}', '${role}')
     `;
 
-    db.query(sql, [username, email, password, address, contact, role], (err, result) => {
+    db.query(sql, (err, result) => {
         if (err) {
             console.error(err);
-            return res.status(500).send('Registration failed. Please try again.');
+            return res.status(500).send('Registration failed. Error: ' + err.message);
         }
 
-        console.log(result);
         req.flash('success', 'Registration successful! Please log in.');
         res.redirect('/login');
     });
@@ -120,18 +118,16 @@ app.get('/login', (req,res) => {
 });
 
 //******** TODO: Insert code for login routes for form submission below ********//
-app.post('/login', (req,res) => {
-    const { email, password } = req.body
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
 
-    if (!email || !password) {
-        req.flash('error', 'All fields are required');
-        return res.redirect('/login');
-    }
-
-    const sql = 'SELECT * FROM users WHERE email = ? AND password = SHA1(?)'
-    db.query(sql, [email, password], (err, results) => {
+    // INSECURE: Unescaped string injection in login, fyi, amin@admin.com' #
+    const sql = `SELECT * FROM users WHERE email = '${email}' AND password = SHA1('${password}')`;
+    
+    db.query(sql, (err, results) => {
         if (err) {
-            throw err;
+            // Exposing raw SQL errors for educational error-based demonstration
+            return res.status(500).send('Database Error: ' + err.message);
         }
 
         if (results.length > 0) {
@@ -139,11 +135,12 @@ app.post('/login', (req,res) => {
             req.flash('success', 'Login successful!');
             res.redirect('/dashboard');
         } else {
-            req.flash('error', 'Invalid email or password.')
+            req.flash('error', 'Invalid email or password.');
             res.redirect('/login');
         }
     });
 });
+
 //******** TODO: Insert code for dashboard route to render dashboard page for users. ********//
 app.get('/dashboard', checkAuthenticated, (req, res) => {
     res.render('dashboard', { user: req.session.user });
@@ -154,6 +151,10 @@ app.get('/admin', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('admin', { user: req.session.user });
 });
 
+// ******** Integration for User Management Router ******** //
+const userManagementRouter = require('./usermanagement')(db);
+app.use('/admin/users', checkAuthenticated, checkAdmin, userManagementRouter);
+
 //******** TODO: Insert code for logout route ********//
 app.get('/logout', (req, res) => {
     req.session.destroy();
@@ -162,5 +163,6 @@ app.get('/logout', (req, res) => {
 
 // Starting the server
 app.listen(3000, () => {
-    console.log('Server started on port 3000');
+    console.log('\x1b[32mServer started on port 3000\x1b[0m');
+    console.log('\x1b[31mCAUTION: This application is intentionally vulnerable for educational purposes. Do not use in production.\x1b[0m');
 });
