@@ -104,9 +104,14 @@
                 <input type="password" id="password" name="password" class="form-control" required>
             </div>
             <div class="mb-3">
-                <label for="address" class="form-label">Address:</label>
-                <input type="text" id="address" name="address" class="form-control" required 
-                <% if (formData && formData.address) { %> value="<%= formData.address %>" <% } else { %> value="" <% } %>>
+                <label for="home_address" class="form-label">Home Address:</label>
+                <input type="text" id="home_address" name="home_address" class="form-control" required 
+                <% if (formData && formData.home_address) { %> value="<%= formData.home_address %>" <% } else { %> value="" <% } %>>
+            </div>
+            <div class="mb-3">
+                <label for="work_address" class="form-label">Work Address (Optional):</label>
+                <input type="text" id="work_address" name="work_address" class="form-control" 
+                <% if (formData && formData.work_address) { %> value="<%= formData.work_address %>" <% } else { %> value="" <% } %>>
             </div>
             <div class="mb-3">
                 <label for="contact" class="form-label">Contact Number:</label>

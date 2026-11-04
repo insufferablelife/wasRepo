@@ -6,12 +6,12 @@ module.exports = function(db) {
     // GET /admin/users - User Management Board
     router.get('/', (req, res) => {
         const searchQuery = req.query.search || '';
-        let sql = 'SELECT id, username, email, address, contact, role FROM users';
+        let sql = 'SELECT id, username, email, home_address, work_address, contact, role FROM users';
         let queryParams = [];
 
         if (searchQuery) {
-            sql += ' WHERE username LIKE ? OR email LIKE ? OR address LIKE ?';
-            queryParams = [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`];
+            sql += ' WHERE username LIKE ? OR email LIKE ? OR home_address LIKE ? OR work_address LIKE ?';
+            queryParams = [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`];
         }
 
         db.query(sql, queryParams, (err, results) => {

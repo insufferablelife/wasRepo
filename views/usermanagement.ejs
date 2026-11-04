@@ -10,7 +10,7 @@
             margin: 40px;
         }
         .container {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
             background: #ffffff;
             padding: 30px;
@@ -115,7 +115,7 @@
         <div class="header-top">
             <form action="/admin/users" method="GET" class="search-form">
                 <label for="search">Search Users</label>
-                <input type="text" id="search" name="search" value="<%= search %>" placeholder="Search by username, email, address...">
+                <input type="text" id="search" name="search" value="<%= search %>" placeholder="Search by username, email, home address...">
                 <button type="submit">Search</button>
             </form>
         </div>
@@ -126,7 +126,8 @@
                     <th>ID</th>
                     <th>Username</th>
                     <th>Email</th>
-                    <th>Address</th>
+                    <th>Home Address</th>
+                    <th>Work Address</th>
                     <th>Contact</th>
                     <th>Role</th>
                 </tr>
@@ -135,11 +136,12 @@
                 <% if (users && users.length > 0) { %>
                     <% users.forEach(u => { %>
                         <tr>
-                            <td><%= u.id %></td>
-                            <td><%= u.username %></td>
-                            <td><%= u.email %></td>
-                            <td><%= u.address %></td>
-                            <td><%= u.contact %></td>
+                            <td><%- u.id %></td>
+                            <td><%- u.username %></td>
+                            <td><%- u.email %></td>
+                            <td><%- u.home_address %></td>
+                            <td><%- u.work_address ? u.work_address : 'N/A' %></td>
+                            <td><%- u.contact %></td>
                             <td>
                                 <span class="<%= u.role === 'admin' ? 'role-admin' : 'role-user' %>">
                                     <%= u.role.toUpperCase() %>
@@ -149,7 +151,7 @@
                     <% }) %>
                 <% } else { %>
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 20px;">No users found.</td>
+                        <td colspan="7" style="text-align: center; padding: 20px;">No users found.</td>
                     </tr>
                 <% } %>
             </tbody>

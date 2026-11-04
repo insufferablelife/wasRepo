@@ -13,7 +13,8 @@ const db = mysql.createConnection({
     host: '127.0.0.1',
     user: 'root',
     password: 'Republic_C207',
-    database: 'fypdb'
+    database: 'fypdb',
+    multipleStatements: true
 });
 
 db.connect((err) => {
@@ -72,9 +73,9 @@ app.get('/register', (req, res) => {
 
 //******** TODO: Create a middleware function validateRegistration ********//
 const validateRegistration = (req, res, next) => {
-    const { username, email, password, address, contact} = req.body;
+    const { username, email, password, home_address, contact} = req.body;
 
-    if (!username || !email || !password || !address || !contact) {
+    if (!username || !email || !password || !home_address || !contact) {
         return res.status(400).send('All fields are required.')
     }
 
@@ -89,13 +90,15 @@ const validateRegistration = (req, res, next) => {
 
 //******** TODO: Integrate validateRegistration into the register route. ********//
 app.post('/register', validateRegistration, (req, res) => {
-    const { username, email, password, address, contact } = req.body;
+    const { username, email, password, home_address, work_address, contact } = req.body;
     const role = 'user';
+
+    const workAddrValue = work_address ? `'${work_address}'` : 'NULL';
 
     // INSECURE: Direct variable interpolation allows breaking out of SQL syntax
     const sql = `
-        INSERT INTO users (username, email, password, address, contact, role)
-        VALUES ('${username}', '${email}', SHA1('${password}'), '${address}', '${contact}', '${role}')
+        INSERT INTO users (username, email, password, contact, role, home_address, work_address)
+        VALUES ('${username}', '${email}', SHA1('${password}'), '${contact}', '${role}', '${home_address}', ${workAddrValue})
     `;
 
     db.query(sql, (err, result) => {
