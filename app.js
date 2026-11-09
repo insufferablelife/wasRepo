@@ -98,7 +98,7 @@ app.post('/register', validateRegistration, (req, res) => {
     // INSECURE: Direct variable interpolation allows breaking out of SQL syntax
     const sql = `
         INSERT INTO users (username, email, password, contact, role, home_address, work_address)
-        VALUES ('${username}', '${email}', SHA1('${password}'), '${contact}', '${role}', '${home_address}', ${workAddrValue})
+        VALUES ('${username}', '${email}', SHA2('${password}', 256), '${contact}', '${role}', '${home_address}', ${workAddrValue})
     `;
 
     db.query(sql, (err, result) => {
@@ -125,7 +125,7 @@ app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
     // INSECURE: Unescaped string injection in login, fyi, amin@admin.com' #
-    const sql = `SELECT * FROM users WHERE email = '${email}' AND password = SHA1('${password}')`;
+    const sql = `SELECT * FROM users WHERE email = '${email}' AND password = SHA2('${password}', 256)`;
     
     db.query(sql, (err, results) => {
         if (err) {
@@ -146,7 +146,7 @@ app.post('/login', (req, res) => {
 
 //******** TODO: Insert code for dashboard route to render dashboard page for users. ********//
 app.get('/dashboard', checkAuthenticated, (req, res) => {
-    res.render('dashboard', { user: req.session.user });
+    res.render('dashboard', { user: req.session.user, messages: req.flash('success') });
 });
 
 //******** TODO: Insert code for admin route to render dashboard page for admin. ********//
