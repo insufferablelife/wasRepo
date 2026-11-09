@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Request an Asset</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-4" style="max-width: 800px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Request an Asset</h2>
+        <a href="/dashboard" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+    </div>
+
+    <% if (messages && messages.length > 0) { %>
+        <div class="alert alert-success">
+            <% messages.forEach(m => { %><div><%= m %></div><% }) %>
+        </div>
+    <% } %>
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert-danger">
+            <% errors.forEach(e => { %><div><%= e %></div><% }) %>
+        </div>
+    <% } %>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="/assets/request" method="POST">
+                <div class="mb-3">
+                    <label for="asset_type" class="form-label">Asset type / model</label>
+                    <select class="form-select" id="asset_type" required>
+                        <option value="">-- Select a type --</option>
+                        <% types.forEach(t => { %>
+                            <option value="<%= t.type %>"><%= t.type %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="asset_id" class="form-label">Available asset</label>
+                    <select class="form-select" id="asset_id" name="asset_id" required disabled>
+                        <option value="">-- Select a type first --</option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label">Start date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label">End date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="purpose" class="form-label">Purpose of loan</label>
+                    <input type="text" class="form-control" id="purpose" name="purpose" maxlength="255"
+                           placeholder="e.g. Project demo, fieldwork, remote work" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="comments" class="form-label">Comments (optional)</label>
+                    <textarea class="form-control" id="comments" name="comments" rows="3"
+                              placeholder="Anything else the approver should know"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <h4>My Requests</h4>
+    <div class="table-responsive">
+        <table class="table table-striped bg-white">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Type</th>
+                    <th>Serial No.</th>
+                    <th>Loan Period</th>
+                    <th>Purpose</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (requests.length === 0) { %>
+                    <tr><td colspan="6" class="text-center text-muted">No requests yet.</td></tr>
+                <% } %>
+                <% requests.forEach(r => { %>
+                    <tr>
+                        <td><%= r.name %></td>
+                        <td><%= r.type %></td>
+                        <td><%= r.serial_no %></td>
+                        <td>
+                            <%= r.start_date ? new Date(r.start_date).toLocaleDateString() : '-' %>
+                            to
+                            <%= r.end_date ? new Date(r.end_date).toLocaleDateString() : '-' %>
+                        </td>
+                        <td><%= r.purpose || '-' %></td>
+                        <td><%= r.status %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const typeSelect = document.getElementById('asset_type');
+    const assetSelect = document.getElementById('asset_id');
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+
+    // Dates: can't start in the past, can't end before start
+    const today = new Date().toISOString().split('T')[0];
+    startDate.min = today;
+    endDate.min = today;
+    startDate.addEventListener('change', () => {
+        endDate.min = startDate.value || today;
+        if (endDate.value && endDate.value < endDate.min) endDate.value = '';
+    });
+
+    function setAssetOptions(label, disabled) {
+        assetSelect.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = label;
+        assetSelect.appendChild(opt);
+        assetSelect.disabled = disabled;
+    }
+
+    typeSelect.addEventListener('change', async () => {
+        const type = typeSelect.value;
+        if (!type) { setAssetOptions('-- Select a type first --', true); return; }
+
+        setAssetOptions('Loading...', true);
+        try {
+            const res = await fetch('/assets/available?type=' + encodeURIComponent(type));
+            const rows = await res.json();
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                setAssetOptions('No available assets of this type', true);
+                return;
+            }
+
+            setAssetOptions('-- Select an asset --', false);
+            rows.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = a.name + ' (S/N: ' + a.serial_no + ')';
+                assetSelect.appendChild(opt);
+            });
+        } catch (e) {
+            setAssetOptions('Could not load assets', true);
+        }
+    });
+</script>
+</body>
+</html>

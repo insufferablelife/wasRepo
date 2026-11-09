@@ -146,12 +146,126 @@ app.post('/login', (req, res) => {
 
 //******** TODO: Insert code for dashboard route to render dashboard page for users. ********//
 app.get('/dashboard', checkAuthenticated, (req, res) => {
-    res.render('dashboard', { user: req.session.user, messages: req.flash('success') });
+    res.render('dashboard', { user: req.session.user, messages: req.flash('success'), errors: req.flash('error') });
 });
 
 //******** TODO: Insert code for admin route to render dashboard page for admin. ********//
 app.get('/admin', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('admin', { user: req.session.user });
+});
+
+// ******** Asset Request routes ******** //
+
+// Available assets of a chosen type (feeds the 2nd dropdown)
+app.get('/assets/available', checkAuthenticated, (req, res) => {
+    const type = req.query.type || '';
+
+    // INSECURE: type is interpolated directly into the SQL (SQL injection)
+    const sql = `
+        SELECT id, name, serial_no FROM asset
+        WHERE type = '${type}'
+        AND id NOT IN (SELECT asset_id FROM asset_requests WHERE status = 'Approved')
+        ORDER BY name
+    `;
+
+    db.query(sql, (err, rows) => {
+        if (err) {
+            // Raw SQL error exposed for error-based demonstration
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// Show the asset request form + the logged-in user's own requests
+app.get('/assets/request', checkAuthenticated, (req, res) => {
+    const userId = req.session.user.id;
+
+    // Only list types that still have at least one available asset
+    const typesSql = `
+        SELECT DISTINCT type FROM asset
+        WHERE id NOT IN (SELECT asset_id FROM asset_requests WHERE status = 'Approved')
+        ORDER BY type
+    `;
+
+    const requestsSql = `
+        SELECT r.id, a.name, a.type, a.serial_no, r.start_date, r.end_date,
+               r.purpose, r.status, r.created_at
+        FROM asset_requests r
+        JOIN asset a ON a.id = r.asset_id
+        WHERE r.user_id = ${userId}
+        ORDER BY r.created_at DESC
+    `;
+
+    db.query(typesSql, (err, types) => {
+        if (err) {
+            return res.status(500).send('Database Error: ' + err.message);
+        }
+
+        db.query(requestsSql, (err2, requests) => {
+            if (err2) {
+                return res.status(500).send('Database Error: ' + err2.message);
+            }
+
+            res.render('assetrequest', {
+                user: req.session.user,
+                types,
+                requests,
+                messages: req.flash('success'),
+                errors: req.flash('error')
+            });
+        });
+    });
+});
+
+// Submit a borrow request
+app.post('/assets/request', checkAuthenticated, (req, res) => {
+    const userId = req.session.user.id;
+    const { asset_id, start_date, end_date, purpose, comments } = req.body;
+
+    if (!asset_id || !start_date || !end_date || !purpose) {
+        req.flash('error', 'Please select an asset, choose the dates and state the purpose of the loan.');
+        return res.redirect('/assets/request');
+    }
+
+    if (end_date < start_date) {
+        req.flash('error', 'End date cannot be before the start date.');
+        return res.redirect('/assets/request');
+    }
+
+    // INSECURE: asset_id is interpolated directly into the SQL (numeric injection)
+    const checkSql = `
+        SELECT id FROM asset_requests
+        WHERE user_id = ${userId} AND asset_id = ${asset_id} AND status = 'Pending'
+    `;
+
+    db.query(checkSql, (err, existing) => {
+        if (err) {
+            return res.status(500).send('Database Error: ' + err.message);
+        }
+
+        if (existing.length > 0) {
+            req.flash('error', 'You already have a pending request for this asset.');
+            return res.redirect('/assets/request');
+        }
+
+        const commentsValue = comments ? `'${comments}'` : 'NULL';
+
+        // INSECURE: purpose / comments / dates are interpolated directly into the SQL
+        const insertSql = `
+            INSERT INTO asset_requests (user_id, asset_id, start_date, end_date, purpose, comments)
+            VALUES (${userId}, ${asset_id}, '${start_date}', '${end_date}', '${purpose}', ${commentsValue})
+        `;
+
+        db.query(insertSql, (err2) => {
+            if (err2) {
+                return res.status(500).send('Database Error: ' + err2.message);
+            }
+
+            req.flash('success', 'Asset request submitted. Waiting for admin approval.');
+            res.redirect('/assets/request');
+        });
+    });
 });
 
 // ******** Integration for User Management Router ******** //
