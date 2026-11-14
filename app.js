@@ -272,6 +272,14 @@ app.post('/assets/request', checkAuthenticated, (req, res) => {
 const userManagementRouter = require('./usermanagement')(db);
 app.use('/admin/users', checkAuthenticated, checkAdmin, userManagementRouter);
 
+// ******** Integration for Forum Router ******** //
+const forumRouter = require('./forum')(db);
+app.use('/forum', checkAuthenticated, forumRouter);
+
+// ******** Integration for Profile Router ******** //
+const profileRouter = require('./profile')(db);
+app.use('/profile', checkAuthenticated, profileRouter);
+
 //******** TODO: Insert code for logout route ********//
 app.get('/logout', (req, res) => {
     req.session.destroy();
