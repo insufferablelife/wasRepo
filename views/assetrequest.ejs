@@ -28,7 +28,7 @@
         <div class="card-body">
             <form action="/assets/request" method="POST">
                 <div class="mb-3">
-                    <label for="asset_type" class="form-label">Asset type / model</label>
+                    <label for="asset_type" class="form-label">Asset type</label>
                     <select class="form-select" id="asset_type" required>
                         <option value="">-- Select a type --</option>
                         <% types.forEach(t => { %>
@@ -38,10 +38,32 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="asset_id" class="form-label">Available asset</label>
-                    <select class="form-select" id="asset_id" name="asset_id" required disabled>
+                    <label for="model_id" class="form-label">Model / configuration</label>
+                    <select class="form-select" id="model_id" name="model_id" required disabled>
                         <option value="">-- Select a type first --</option>
                     </select>
+                </div>
+
+                <!-- Spec card: shown once a model is chosen -->
+                <div id="model_card" class="card mb-3 d-none">
+                    <div class="row g-0">
+                        <div class="col-md-4 d-flex align-items-center justify-content-center p-3 bg-light">
+                            <img id="model_img" class="img-fluid rounded d-none" style="max-height: 160px;" alt="Device image">
+                            <div id="model_noimg" class="text-muted small">No image available</div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card-body">
+                                <h5 class="card-title" id="card_name"></h5>
+                                <ul class="list-unstyled mb-2">
+                                    <li><strong>Type:</strong> <span id="card_type"></span></li>
+                                    <li><strong>RAM:</strong> <span id="card_ram"></span></li>
+                                    <li><strong>Storage:</strong> <span id="card_storage"></span></li>
+                                    <li><strong>Units available:</strong> <span id="card_available"></span></li>
+                                </ul>
+                                <small class="text-muted">A specific device will be assigned when an admin approves your request.</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -77,9 +99,9 @@
         <table class="table table-striped bg-white">
             <thead>
                 <tr>
-                    <th>Asset</th>
-                    <th>Type</th>
-                    <th>Serial No.</th>
+                    <th>Model</th>
+                    <th>Specs</th>
+                    <th>Device (S/N)</th>
                     <th>Loan Period</th>
                     <th>Purpose</th>
                     <th>Status</th>
@@ -91,9 +113,14 @@
                 <% } %>
                 <% requests.forEach(r => { %>
                     <tr>
-                        <td><%= r.name %></td>
-                        <td><%= r.type %></td>
-                        <td><%= r.serial_no %></td>
+                        <td><%= r.name || '-' %><br><small class="text-muted"><%= r.type || '' %></small></td>
+                        <td>
+                            <%= r.ram ? r.ram + ' RAM' : '' %>
+                            <%= r.ram && r.storage ? ' / ' : '' %>
+                            <%= r.storage || '' %>
+                            <%= !r.ram && !r.storage ? '-' : '' %>
+                        </td>
+                        <td><%= r.serial_no || 'To be assigned' %></td>
                         <td>
                             <%= r.start_date ? new Date(r.start_date).toLocaleDateString() : '-' %>
                             to
@@ -110,9 +137,11 @@
 
 <script>
     const typeSelect = document.getElementById('asset_type');
-    const assetSelect = document.getElementById('asset_id');
+    const modelSelect = document.getElementById('model_id');
+    const card = document.getElementById('model_card');
     const startDate = document.getElementById('start_date');
     const endDate = document.getElementById('end_date');
+    let models = {};   // id -> model details, filled when a type is chosen
 
     // Dates: can't start in the past, can't end before start
     const today = new Date().toISOString().split('T')[0];
@@ -123,39 +152,74 @@
         if (endDate.value && endDate.value < endDate.min) endDate.value = '';
     });
 
-    function setAssetOptions(label, disabled) {
-        assetSelect.innerHTML = '';
+    function setModelOptions(label, disabled) {
+        modelSelect.innerHTML = '';
         const opt = document.createElement('option');
         opt.value = '';
         opt.textContent = label;
-        assetSelect.appendChild(opt);
-        assetSelect.disabled = disabled;
+        modelSelect.appendChild(opt);
+        modelSelect.disabled = disabled;
+        card.classList.add('d-none');
     }
 
+    function modelLabel(m) {
+        let text = m.name;
+        if (m.ram) text += ' \u00b7 ' + m.ram + ' RAM';
+        if (m.storage) text += ' \u00b7 ' + m.storage;
+        return text;
+    }
+
+    // Type chosen -> load models
     typeSelect.addEventListener('change', async () => {
         const type = typeSelect.value;
-        if (!type) { setAssetOptions('-- Select a type first --', true); return; }
+        models = {};
+        if (!type) { setModelOptions('-- Select a type first --', true); return; }
 
-        setAssetOptions('Loading...', true);
+        setModelOptions('Loading...', true);
         try {
-            const res = await fetch('/assets/available?type=' + encodeURIComponent(type));
+            const res = await fetch('/assets/models?type=' + encodeURIComponent(type));
             const rows = await res.json();
 
             if (!Array.isArray(rows) || rows.length === 0) {
-                setAssetOptions('No available assets of this type', true);
+                setModelOptions('No available models of this type', true);
                 return;
             }
 
-            setAssetOptions('-- Select an asset --', false);
-            rows.forEach(a => {
+            setModelOptions('-- Select a model --', false);
+            rows.forEach(m => {
+                models[m.id] = m;
                 const opt = document.createElement('option');
-                opt.value = a.id;
-                opt.textContent = a.name + ' (S/N: ' + a.serial_no + ')';
-                assetSelect.appendChild(opt);
+                opt.value = m.id;
+                opt.textContent = modelLabel(m);
+                modelSelect.appendChild(opt);
             });
         } catch (e) {
-            setAssetOptions('Could not load assets', true);
+            setModelOptions('Could not load models', true);
         }
+    });
+
+    // Model chosen -> show specs + image
+    modelSelect.addEventListener('change', () => {
+        const m = models[modelSelect.value];
+        if (!m) { card.classList.add('d-none'); return; }
+
+        document.getElementById('card_name').textContent = m.name;
+        document.getElementById('card_type').textContent = m.type;
+        document.getElementById('card_ram').textContent = m.ram || 'Not specified';
+        document.getElementById('card_storage').textContent = m.storage || 'Not specified';
+        document.getElementById('card_available').textContent = m.available;
+
+        const img = document.getElementById('model_img');
+        const noImg = document.getElementById('model_noimg');
+        img.classList.add('d-none');
+        noImg.classList.remove('d-none');
+        if (m.image_url) {
+            img.onload = () => { img.classList.remove('d-none'); noImg.classList.add('d-none'); };
+            img.onerror = () => { img.classList.add('d-none'); noImg.classList.remove('d-none'); };
+            img.src = m.image_url;
+        }
+
+        card.classList.remove('d-none');
     });
 </script>
 </body>
