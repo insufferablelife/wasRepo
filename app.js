@@ -61,9 +61,17 @@ const checkAdmin = (req, res, next) => {
     }
 }
 
+//******** New Middleware: Redirect to dashboard if already logged in ********//
+const redirectIfAuthenticated = (req, res, next) => {
+    if (req.session && req.session.user) {
+        return res.redirect('/dashboard');
+    }
+    next();
+};
+
 // Routes
-app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user, messages: req.flash('success')});
+app.get('/', redirectIfAuthenticated, (req, res) => {
+    res.render('index', { user: req.session.user, messages: req.flash('success') });
 });
 
 app.get('/register', (req, res) => {
@@ -146,12 +154,181 @@ app.post('/login', (req, res) => {
 
 //******** TODO: Insert code for dashboard route to render dashboard page for users. ********//
 app.get('/dashboard', checkAuthenticated, (req, res) => {
-    res.render('dashboard', { user: req.session.user, messages: req.flash('success'), errors: req.flash('error') });
+    const user = req.session.user;
+    const recentPostsSql = `
+        SELECT p.id, p.title, p.content, p.created_at, u.username
+        FROM forum_posts p
+        JOIN users u ON u.id = p.user_id
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT 5
+    `;
+
+    const userRequestsSql = `
+        SELECT r.id, m.name, m.type, m.ram, m.storage, a.serial_no,
+               r.start_date, r.end_date, r.purpose, r.status, r.created_at
+        FROM asset_requests r
+        JOIN asset_models m ON m.id = r.model_id
+        LEFT JOIN asset a ON a.id = r.asset_id
+        WHERE r.user_id = ?
+        ORDER BY r.created_at DESC, r.id DESC
+    `;
+
+    db.query(recentPostsSql, (postsError, recentPosts) => {
+        if (postsError) {
+            console.error(postsError);
+            return res.status(500).send('Unable to load recent forum posts.');
+        }
+
+        db.query(userRequestsSql, [user.id], (requestsError, requests) => {
+            if (requestsError) {
+                console.error(requestsError);
+                return res.status(500).send('Unable to load your asset requests.');
+            }
+
+            res.render('dashboard', {
+                user,
+                username: user.username,
+                recentPosts,
+                requests,
+                messages: req.flash('success'),
+                errors: req.flash('error')
+            });
+        });
+    });
 });
 
 //******** TODO: Insert code for admin route to render dashboard page for admin. ********//
 app.get('/admin', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('admin', { user: req.session.user });
+});
+
+// Profile Routes (Fixed to prevent asset_models errors and support /profile/:id)
+app.get('/profile', checkAuthenticated, (req, res) => {
+    res.redirect('/profile/' + req.session.user.id);
+});
+
+app.get('/profile/:id', checkAuthenticated, (req, res) => {
+    const profileId = req.params.id;
+    const currentUserId = req.session.user.id;
+    const isOwnProfile = String(profileId) === String(currentUserId);
+
+    const userSql = `
+        SELECT u.id, u.username, u.email, u.contact, u.role, u.home_address, u.work_address, p.about_me
+        FROM users u
+        LEFT JOIN user_profiles p ON p.user_id = u.id
+        WHERE u.id = ?
+    `;
+
+    const postsSql = `
+        SELECT p.id, p.title, p.content, p.created_at, c.name AS category_name,
+               (SELECT COUNT(*) FROM forum_comments fc WHERE fc.post_id = p.id) AS reply_count
+        FROM forum_posts p
+        LEFT JOIN forum_categories c ON c.id = p.category_id
+        WHERE p.user_id = ?
+        ORDER BY p.created_at DESC
+        LIMIT 10
+    `;
+
+    const repliesSql = `
+        SELECT fc.id, fc.post_id, fc.content, fc.created_at, fp.title AS post_title
+        FROM forum_comments fc
+        JOIN forum_posts fp ON fp.id = fc.post_id
+        WHERE fc.user_id = ?
+        ORDER BY fc.created_at DESC
+        LIMIT 10
+    `;
+
+    const assetCommentsSql = `
+        SELECT ac.id, ac.asset_id, ac.content, ac.type, ac.is_pinned, ac.created_at, a.name AS asset_name
+        FROM asset_comments ac
+        JOIN asset a ON a.id = ac.asset_id
+        WHERE ac.user_id = ?
+        ORDER BY ac.created_at DESC
+        LIMIT 10
+    `;
+
+    db.query(userSql, [profileId], (err, userResults) => {
+        if (err || userResults.length === 0) {
+            console.error(err);
+            return res.status(404).send('User profile not found.');
+        }
+
+        const profile = userResults[0];
+
+        db.query(postsSql, [profileId], (errPosts, posts) => {
+            if (errPosts) posts = [];
+            db.query(repliesSql, [profileId], (errReplies, replies) => {
+                if (errReplies) replies = [];
+                db.query(assetCommentsSql, [profileId], (errAsset, assetComments) => {
+                    if (errAsset) assetComments = [];
+
+                    res.render('profile', {
+                        profile,
+                        isOwnProfile,
+                        user: req.session.user,
+                        success: req.flash('success'),
+                        error: req.flash('error'),
+                        activity: {
+                            posts,
+                            replies,
+                            assetComments
+                        }
+                    });
+                });
+            });
+        });
+    });
+});
+
+app.get('/profile/edit', checkAuthenticated, (req, res) => {
+    const userId = req.session.user.id;
+    const sql = `
+        SELECT u.id, u.username, u.email, u.contact, u.home_address, u.work_address, p.about_me
+        FROM users u
+        LEFT JOIN user_profiles p ON p.user_id = u.id
+        WHERE u.id = ?
+    `;
+    db.query(sql, [userId], (err, results) => {
+        if (err || results.length === 0) {
+            return res.status(404).send('User not found.');
+        }
+        res.render('edit_profile', {
+            formData: results[0],
+            errors: req.flash('error'),
+            success: req.flash('success'),
+            user: req.session.user
+        });
+    });
+});
+
+app.post('/profile/edit', checkAuthenticated, (req, res) => {
+    const userId = req.session.user.id;
+    const { username, email, contact, home_address, work_address, about_me } = req.body;
+
+    const updateUserSql = `
+        UPDATE users SET username = ?, email = ?, contact = ?, home_address = ?, work_address = ?
+        WHERE id = ?
+    `;
+    const upsertProfileSql = `
+        INSERT INTO user_profiles (user_id, about_me) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE about_me = ?
+    `;
+
+    db.query(updateUserSql, [username, email, contact, home_address, work_address || null, userId], (err) => {
+        if (err) {
+            req.flash('error', 'Failed to update profile: ' + err.message);
+            req.flash('formData', req.body);
+            return res.redirect('/profile/edit');
+        }
+
+        db.query(upsertProfileSql, [userId, about_me || '', about_me || ''], (err2) => {
+            if (err2) console.error(err2);
+            req.session.user.username = username;
+            req.session.user.email = email;
+            req.flash('success', 'Profile updated successfully.');
+            res.redirect('/profile/' + userId);
+        });
+    });
 });
 
 // ******** Integration for Asset Request Router ******** //
@@ -161,6 +338,10 @@ app.use('/assets', checkAuthenticated, assetRequestRouter);
 // ******** Integration for User Management Router ******** //
 const userManagementRouter = require('./usermanagement')(db);
 app.use('/admin/users', checkAuthenticated, checkAdmin, userManagementRouter);
+
+// ******** Integration for Forum Router ******** //
+const forumRouter = require('./forum')(db);
+app.use('/forum', checkAuthenticated, forumRouter);
 
 //******** TODO: Insert code for logout route ********//
 app.get('/logout', (req, res) => {
