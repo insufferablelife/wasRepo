@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin - Manage Assets</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<% const specLines = (s) => (s || '').split(/\r?\n/).filter(Boolean); %>
+<% const typeList = [...new Set(['Laptop', 'Tablet', 'Camera', 'Projector'].concat(models.map(m => m.type)))]; %>
+<div class="container py-4" style="max-width: 1000px;">
+    <h2 class="mb-3">Admin: Assets</h2>
+
+    <div class="d-flex gap-2 mb-3">
+        <a href="/admin" class="btn btn-outline-secondary btn-sm">Admin Dashboard</a>
+        <a href="/admin/assets" class="btn btn-primary btn-sm">Models &amp; Units</a>
+        <a href="/admin/assets/requests" class="btn btn-outline-primary btn-sm">Loan Requests</a>
+    </div>
+
+    <% if (messages && messages.length > 0) { %>
+        <div class="alert alert-success"><% messages.forEach(m => { %><div><%= m %></div><% }) %></div>
+    <% } %>
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert-danger"><% errors.forEach(e => { %><div><%= e %></div><% }) %></div>
+    <% } %>
+
+    <!-- ===================== MODELS ===================== -->
+    <h4>Models</h4>
+    <div class="table-responsive mb-3">
+        <table class="table table-striped bg-white align-middle">
+            <thead>
+                <tr><th></th><th>Model</th><th>Type</th><th>Specs</th><th>Units (free / total)</th><th></th></tr>
+            </thead>
+            <tbody>
+                <% if (models.length === 0) { %>
+                    <tr><td colspan="6" class="text-center text-muted">No models yet.</td></tr>
+                <% } %>
+                <% models.forEach(m => { %>
+                    <tr>
+                        <td style="width: 70px;">
+                            <% if (m.image_url) { %>
+                                <img src="<%= m.image_url %>" alt="" style="height: 48px;" onerror="this.style.display='none'">
+                            <% } %>
+                        </td>
+                        <td><%= m.name %></td>
+                        <td><%= m.type %></td>
+                        <td>
+                            <% specLines(m.specs).forEach(line => { %><div class="small"><%= line %></div><% }) %>
+                            <% if (specLines(m.specs).length === 0) { %><span class="text-muted">-</span><% } %>
+                        </td>
+                        <td><%= m.free_units %> / <%= m.total_units %></td>
+                        <td class="text-end text-nowrap">
+                            <a href="/admin/assets/models/<%= m.id %>/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <form action="/admin/assets/models/<%= m.id %>/delete" method="POST" class="d-inline"
+                                  onsubmit="return confirm('Delete this model?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card mb-5">
+        <div class="card-header">Add a model</div>
+        <div class="card-body">
+            <form action="/admin/assets/models" method="POST">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="name" class="form-label">Model name</label>
+                        <input type="text" class="form-control" id="name" name="name" maxlength="45" required
+                               placeholder="e.g. Canon EOS 200D">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="type" class="form-label">Asset type</label>
+                        <input type="text" class="form-control" id="type" name="type" maxlength="20" list="type_list" required
+                               placeholder="e.g. Camera">
+                        <datalist id="type_list">
+                            <% typeList.forEach(t => { %><option value="<%= t %>"><% }) %>
+                        </datalist>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="specs" class="form-label">Specifications (one per line, as <code>Label: value</code>)</label>
+                    <textarea class="form-control" id="specs" name="specs" rows="4"
+                              placeholder="Sensor: 24.1MP APS-C&#10;Lens: 18-55mm kit&#10;Video: 1080p"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="image_url" class="form-label">Image path (optional)</label>
+                    <input type="text" class="form-control" id="image_url" name="image_url" maxlength="255"
+                           placeholder="/images/canon-eos-200d.jpg (file in public/images)">
+                </div>
+                <button type="submit" class="btn btn-primary">Add model</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================== UNITS ===================== -->
+    <h4>Units (serial numbers)</h4>
+    <div class="table-responsive mb-3">
+        <table class="table table-striped bg-white align-middle">
+            <thead>
+                <tr><th>Serial No.</th><th>Model</th><th>Type</th><th>Available window</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+                <% if (units.length === 0) { %>
+                    <tr><td colspan="6" class="text-center text-muted">No units yet.</td></tr>
+                <% } %>
+                <% units.forEach(u => { %>
+                    <tr>
+                        <td><%= u.serial_no %></td>
+                        <td><%= u.model_name || '-' %></td>
+                        <td><%= u.type || '-' %></td>
+                        <td><%= new Date(u.start_date).toLocaleDateString() %> to <%= new Date(u.end_date).toLocaleDateString() %></td>
+                        <td>
+                            <% if (u.borrower) { %>
+                                <span class="badge text-bg-warning">On loan to <%= u.borrower %></span>
+                            <% } else { %>
+                                <span class="badge text-bg-success">Available</span>
+                            <% } %>
+                        </td>
+                        <td class="text-end">
+                            <form action="/admin/assets/units/<%= u.id %>/delete" method="POST" class="d-inline"
+                                  onsubmit="return confirm('Delete this unit?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Add a unit</div>
+        <div class="card-body">
+            <form action="/admin/assets/units" method="POST">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="model_id" class="form-label">Model</label>
+                        <select class="form-select" id="model_id" name="model_id" required>
+                            <option value="">-- Select a model --</option>
+                            <% models.forEach(m => { %>
+                                <option value="<%= m.id %>"><%= m.name %> (<%= m.type %>)</option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="serial_no" class="form-label">Serial number</label>
+                        <input type="text" class="form-control" id="serial_no" name="serial_no" maxlength="45" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label">Available from</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label">Available until</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add unit</button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

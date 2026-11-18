@@ -16,13 +16,13 @@ module.exports = (db) => {
 
         // INSECURE: type is interpolated directly into the SQL (SQL injection)
         const sql = `
-            SELECT m.id, m.name, m.type, m.ram, m.storage, m.image_url,
+            SELECT m.id, m.name, m.type, m.specs, m.image_url,
                    (SELECT COUNT(*) FROM asset a
                     WHERE a.model_id = m.id AND ${UNIT_AVAILABLE}) AS available
             FROM asset_models m
             WHERE m.type = '${type}'
             HAVING available > 0
-            ORDER BY m.name, m.ram, m.storage
+            ORDER BY m.name
         `;
 
         db.query(sql, (err, rows) => {
@@ -46,7 +46,7 @@ module.exports = (db) => {
         `;
 
         const requestsSql = `
-            SELECT r.id, m.name, m.type, m.ram, m.storage, a.serial_no,
+            SELECT r.id, m.name, m.type, m.specs, a.serial_no,
                    r.start_date, r.end_date, r.purpose, r.status, r.created_at
             FROM asset_requests r
             LEFT JOIN asset a ON a.id = r.asset_id

@@ -56,10 +56,9 @@
                                 <h5 class="card-title" id="card_name"></h5>
                                 <ul class="list-unstyled mb-2">
                                     <li><strong>Type:</strong> <span id="card_type"></span></li>
-                                    <li><strong>RAM:</strong> <span id="card_ram"></span></li>
-                                    <li><strong>Storage:</strong> <span id="card_storage"></span></li>
                                     <li><strong>Units available:</strong> <span id="card_available"></span></li>
                                 </ul>
+                                <ul class="list-unstyled mb-2" id="card_specs"></ul>
                                 <small class="text-muted">A specific device will be assigned when an admin approves your request.</small>
                             </div>
                         </div>
@@ -114,12 +113,7 @@
                 <% requests.forEach(r => { %>
                     <tr>
                         <td><%= r.name || '-' %><br><small class="text-muted"><%= r.type || '' %></small></td>
-                        <td>
-                            <%= r.ram ? r.ram + ' RAM' : '' %>
-                            <%= r.ram && r.storage ? ' / ' : '' %>
-                            <%= r.storage || '' %>
-                            <%= !r.ram && !r.storage ? '-' : '' %>
-                        </td>
+                        <td><small><%= (r.specs || '').split(/\r?\n/).filter(Boolean).join(' · ') || '-' %></small></td>
                         <td><%= r.serial_no || 'To be assigned' %></td>
                         <td>
                             <%= r.start_date ? new Date(r.start_date).toLocaleDateString() : '-' %>
@@ -163,10 +157,7 @@
     }
 
     function modelLabel(m) {
-        let text = m.name;
-        if (m.ram) text += ' \u00b7 ' + m.ram + ' RAM';
-        if (m.storage) text += ' \u00b7 ' + m.storage;
-        return text;
+        return m.name;
     }
 
     // Type chosen -> load models
@@ -205,8 +196,21 @@
 
         document.getElementById('card_name').textContent = m.name;
         document.getElementById('card_type').textContent = m.type;
-        document.getElementById('card_ram').textContent = m.ram || 'Not specified';
-        document.getElementById('card_storage').textContent = m.storage || 'Not specified';
+        const specsList = document.getElementById('card_specs');
+        specsList.innerHTML = '';
+        (m.specs || '').split(/\r?\n/).filter(Boolean).forEach(line => {
+            const li = document.createElement('li');
+            const idx = line.indexOf(':');
+            if (idx > 0) {
+                const strong = document.createElement('strong');
+                strong.textContent = line.slice(0, idx + 1);
+                li.appendChild(strong);
+                li.appendChild(document.createTextNode(' ' + line.slice(idx + 1).trim()));
+            } else {
+                li.textContent = line;
+            }
+            specsList.appendChild(li);
+        });
         document.getElementById('card_available').textContent = m.available;
 
         const img = document.getElementById('model_img');

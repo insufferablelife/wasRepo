@@ -164,11 +164,11 @@ app.get('/dashboard', checkAuthenticated, (req, res) => {
     `;
 
     const userRequestsSql = `
-        SELECT r.id, m.name, m.type, m.ram, m.storage, a.serial_no,
+        SELECT r.id, m.name, m.type, m.specs, a.serial_no,
                r.start_date, r.end_date, r.purpose, r.status, r.created_at
         FROM asset_requests r
-        JOIN asset_models m ON m.id = r.model_id
         LEFT JOIN asset a ON a.id = r.asset_id
+        LEFT JOIN asset_models m ON m.id = COALESCE(r.model_id, a.model_id)
         WHERE r.user_id = ?
         ORDER BY r.created_at DESC, r.id DESC
     `;
@@ -338,6 +338,10 @@ app.use('/assets', checkAuthenticated, assetRequestRouter);
 // ******** Integration for User Management Router ******** //
 const userManagementRouter = require('./usermanagement')(db);
 app.use('/admin/users', checkAuthenticated, checkAdmin, userManagementRouter);
+
+// ******** Integration for Admin Asset Management Router ******** //
+const adminAssetsRouter = require('./adminassets')(db);
+app.use('/admin/assets', checkAuthenticated, checkAdmin, adminAssetsRouter);
 
 // ******** Integration for Forum Router ******** //
 const forumRouter = require('./forum')(db);
